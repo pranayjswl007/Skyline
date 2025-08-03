@@ -22,11 +22,16 @@
 import "@lwc/synthetic-shadow";
 import { createElement } from "lwc";
 import App from "./modules/s/app/app";
+import OrgCompare from "./modules/s/orgCompare/orgCompare";
+import DiffViewer from "./modules/s/diffViewer/diffViewer";
 
 // Wait for the DOM to fully load before initializing the LWC application
 document.addEventListener("DOMContentLoaded", () => {
   const application = createElement("s-app", { is: App });
   document.body.appendChild(application);
+  
+  // Register the diff viewer component
+  createElement("s-diff-viewer", { is: DiffViewer });
 });
 
 // Listen for messages from the VS Code extension

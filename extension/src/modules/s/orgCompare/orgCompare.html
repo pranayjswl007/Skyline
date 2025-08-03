@@ -50,7 +50,7 @@
                 <label class="slds-form-element__label">Select Source Org</label>
                 <div class="slds-select_container">
                   <select class="slds-select" onchange={handleSourceOrgChange}>
-                    <option value="">Loading orgs...</option>
+                    <option value="">Select an org</option>
                     <template for:each={sourceOrgs} for:item="org">
                       <option key={org.alias} value={org.alias}>{org.alias}</option>
                     </template>
@@ -64,7 +64,7 @@
                 <label class="slds-form-element__label">Git Branch</label>
                 <div class="slds-select_container">
                   <select class="slds-select" onchange={handleSourceBranchChange}>
-                    <option value="">Loading branches...</option>
+                    <option value="">Select a branch</option>
                     <template for:each={sourceBranches} for:item="branch">
                       <option key={branch} value={branch}>{branch}</option>
                     </template>
@@ -97,7 +97,7 @@
                 <label class="slds-form-element__label">Select Target Org</label>
                 <div class="slds-select_container">
                   <select class="slds-select" onchange={handleTargetOrgChange}>
-                    <option value="">Loading orgs...</option>
+                    <option value="">Select an org</option>
                     <template for:each={targetOrgs} for:item="org">
                       <option key={org.alias} value={org.alias}>{org.alias}</option>
                     </template>
@@ -111,7 +111,7 @@
                 <label class="slds-form-element__label">Git Branch</label>
                 <div class="slds-select_container">
                   <select class="slds-select" onchange={handleTargetBranchChange}>
-                    <option value="">Loading branches...</option>
+                    <option value="">Select a branch</option>
                     <template for:each={targetBranches} for:item="branch">
                       <option key={branch} value={branch}>{branch}</option>
                     </template>
@@ -145,9 +145,28 @@
               </div>
               <div class="slds-m-top_medium">
                 <p class="slds-text-body_regular">Retrieving metadata from both orgs...</p>
-                <p class="slds-text-body_small slds-text-color_weak">
-                  Retrieving metadata types...
-                </p>
+                
+                <!-- Source Progress -->
+                <div class="progress-section">
+                  <h4>Source Org Progress</h4>
+                  <div class="slds-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+                    <span class="slds-progress-bar__value"></span>
+                  </div>
+                  <p class="slds-text-body_small slds-text-color_weak">
+                    Downloading metadata types...
+                  </p>
+                </div>
+                
+                <!-- Target Progress -->
+                <div class="progress-section">
+                  <h4>Target Org Progress</h4>
+                  <div class="slds-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+                    <span class="slds-progress-bar__value"></span>
+                  </div>
+                  <p class="slds-text-body_small slds-text-color_weak">
+                    Downloading metadata types...
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -165,7 +184,7 @@
               <lightning-icon icon-name="utility:add" size="medium"></lightning-icon>
             </div>
             <div class="summary-content">
-              <div class="summary-count">Added</div>
+              <div class="summary-count">{comparisonResult.added.length}</div>
               <div class="summary-label">Added</div>
             </div>
           </div>
@@ -175,7 +194,7 @@
               <lightning-icon icon-name="utility:delete" size="medium"></lightning-icon>
             </div>
             <div class="summary-content">
-              <div class="summary-count">Removed</div>
+              <div class="summary-count">{comparisonResult.removed.length}</div>
               <div class="summary-label">Removed</div>
             </div>
           </div>
@@ -185,7 +204,7 @@
               <lightning-icon icon-name="utility:edit" size="medium"></lightning-icon>
             </div>
             <div class="summary-content">
-              <div class="summary-count">Changed</div>
+              <div class="summary-count">{comparisonResult.changed.length}</div>
               <div class="summary-label">Changed</div>
             </div>
           </div>
@@ -195,7 +214,7 @@
               <lightning-icon icon-name="utility:check" size="medium"></lightning-icon>
             </div>
             <div class="summary-content">
-              <div class="summary-count">Unchanged</div>
+              <div class="summary-count">{comparisonResult.unchanged.length}</div>
               <div class="summary-label">Unchanged</div>
             </div>
           </div>
@@ -210,7 +229,7 @@
           <button class="filter-button" onclick={handleFilterUnchanged}>Unchanged</button>
         </div>
 
-        <!-- Results Table with Selection -->
+        <!-- Results Table -->
         <div class="results-table-container">
           <div class="table-header">
             <div class="selection-controls">
@@ -237,77 +256,38 @@
               <div class="table-cell header">Actions</div>
             </div>
             
-            <template for:each={filteredComparisonResult} for:item="item">
+            <template for:each={filteredComparisonResult} for:item="item" for:index="index">
               <div key={item.fullName} class="table-row">
                 <div class="table-cell">
                   <label class="slds-checkbox">
-                    <input type="checkbox" onchange={handleItemSelect} data-item={item.fullName} />
+                    <input type="checkbox" onchange={handleItemSelect} data-item="item" />
                     <span class="slds-checkbox_faux"></span>
                   </label>
                 </div>
                 <div class="table-cell">
-                  <span class="status-badge">{item.status}</span>
+                  <span class="status-badge">Status</span>
                 </div>
-                <div class="table-cell">{item.type}</div>
-                <div class="table-cell">{item.name}</div>
-                <div class="table-cell">{item.lastModified}</div>
+                <div class="table-cell">Type</div>
+                <div class="table-cell">Name</div>
+                <div class="table-cell">Last Modified</div>
                 <div class="table-cell">
-                  <button class="view-diff-button" onclick={handleViewDiff} data-item={item.fullName}>
+                  <button class="view-diff-button" onclick={handleViewDiff} data-item="item">
                     View Diff
                   </button>
                 </div>
               </div>
-              
-              <!-- Inline Diff Viewer -->
-              <template lwc:if={showDiffViewer && selectedDiffItem.fullName === item.fullName}>
-                <div class="inline-diff-container">
-                  <div class="diff-viewer-section">
-                    <div class="diff-viewer-header">
-                      <div class="diff-viewer-title">
-                        <lightning-icon icon-name="utility:compare" size="small" class="slds-m-right_small"></lightning-icon>
-                        Metadata Diff
-                      </div>
-                      <button class="diff-viewer-close" onclick={handleCloseDiffViewer}>
-                        <lightning-icon icon-name="utility:close" size="small"></lightning-icon>
-                      </button>
-                    </div>
-                    
-                    <div class="diff-viewer-content">
-                      <div class="diff-panes">
-                        <div class="diff-pane source-pane">
-                          <div class="diff-pane-header">
-                            <span class="diff-pane-label">SOURCE</span>
-                            <span class="diff-pane-env">Source Org</span>
-                          </div>
-                          <div class="diff-pane-content">
-                            <template for:each={diffContent.diffLines} for:item="line">
-                              <div key={line.lineNumber} class="diff-line">
-                                <div class="diff-line-number">{line.lineNumber}</div>
-                                <div class="diff-line-content">{line.sourceContent}</div>
-                              </div>
-                            </template>
-                          </div>
-                        </div>
-                        
-                        <div class="diff-pane target-pane">
-                          <div class="diff-pane-header">
-                            <span class="diff-pane-label">TARGET</span>
-                            <span class="diff-pane-env">Target Org</span>
-                          </div>
-                          <div class="diff-pane-content">
-                            <template for:each={diffContent.diffLines} for:item="line">
-                              <div key={line.lineNumber} class="diff-line">
-                                <div class="diff-line-number">{line.lineNumber}</div>
-                                <div class="diff-line-content">{line.targetContent}</div>
-                              </div>
-                            </template>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </template>
+            </template>
+            
+            <!-- Diff Viewer Component -->
+            <template lwc:if={showDiffViewer}>
+              <s-diff-viewer 
+                source-label={sourceDiffLabel}
+                target-label={targetDiffLabel}
+                diff-content={diffViewerContent}
+                show-line-numbers="true"
+                show-syntax-highlighting="true"
+                onclose={handleCloseDiffViewer}>
+              </s-diff-viewer>
             </template>
           </div>
         </div>

@@ -1,0 +1,94 @@
+<!--
+ Copyright 2025 Mitch Spano
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<template>
+  <div class={containerClass}>
+    <div class="diff-viewer-section">
+      <div class="diff-viewer-header">
+        <div class="diff-viewer-title">
+          <lightning-icon icon-name="utility:compare" size="small" class="slds-m-right_small"></lightning-icon>
+          Metadata Diff
+        </div>
+        <div class="diff-viewer-controls">
+          <button class="diff-viewer-button" onclick={handleFullscreenToggle} title="Toggle Fullscreen (Ctrl+F)">
+            <lightning-icon icon-name="utility:expand" size="small"></lightning-icon>
+          </button>
+          <button class="diff-viewer-close" onclick={handleClose} title="Close (Esc)">
+            <lightning-icon icon-name="utility:close" size="small"></lightning-icon>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Diff Statistics -->
+      <div class="diff-stats">
+        <div class="stat-item added">
+          <span class="stat-label">Added:</span>
+          <span class="stat-value">{diffStats.added}</span>
+        </div>
+        <div class="stat-item removed">
+          <span class="stat-label">Removed:</span>
+          <span class="stat-value">{diffStats.removed}</span>
+        </div>
+        <div class="stat-item changed">
+          <span class="stat-label">Changed:</span>
+          <span class="stat-value">{diffStats.changed}</span>
+        </div>
+        <div class="stat-item unchanged">
+          <span class="stat-label">Unchanged:</span>
+          <span class="stat-value">{diffStats.unchanged}</span>
+        </div>
+      </div>
+      
+      <div class="diff-viewer-content">
+        <div class="diff-panes">
+          <div class="diff-pane source-pane">
+            <div class="diff-pane-header">
+              <span class="diff-pane-label">SOURCE</span>
+              <span class="diff-pane-env">{sourceLabel}</span>
+            </div>
+            <div class="diff-pane-content" onclick={handleLineClick}>
+              <template for:each={sourceLines} for:item="line" for:index="lineIndex">
+                <div key={line.lineNumber} class="diff-line" data-line={line.lineNumber} data-type={line.type}>
+                  <template lwc:if={showLineNumbers}>
+                    <div class="diff-line-number">{line.lineNumber}</div>
+                  </template>
+                  <div class="diff-line-content">{line.content}</div>
+                </div>
+              </template>
+            </div>
+          </div>
+          
+          <div class="diff-pane target-pane">
+            <div class="diff-pane-header">
+              <span class="diff-pane-label">TARGET</span>
+              <span class="diff-pane-env">{targetLabel}</span>
+            </div>
+            <div class="diff-pane-content" onclick={handleLineClick}>
+              <template for:each={targetLines} for:item="line" for:index="lineIndex">
+                <div key={line.lineNumber} class="diff-line" data-line={line.lineNumber} data-type={line.type}>
+                  <template lwc:if={showLineNumbers}>
+                    <div class="diff-line-number">{line.lineNumber}</div>
+                  </template>
+                  <div class="diff-line-content">{line.content}</div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template> 

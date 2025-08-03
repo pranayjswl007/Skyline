@@ -1,0 +1,325 @@
+/**
+ * Copyright 2025 Mitch Spano
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.diff-viewer-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.diff-viewer-container.fullscreen {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.diff-viewer-section {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  width: 90%;
+  max-width: 1200px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.diff-viewer-container.fullscreen .diff-viewer-section {
+  width: 95%;
+  max-width: none;
+  max-height: 95vh;
+  border-radius: 0;
+}
+
+.diff-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e5e5;
+  background: #f8f9fa;
+  border-radius: 8px 8px 0 0;
+}
+
+.diff-viewer-title {
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.diff-viewer-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.diff-viewer-button,
+.diff-viewer-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diff-viewer-button:hover,
+.diff-viewer-close:hover {
+  background-color: #e9ecef;
+}
+
+.diff-stats {
+  display: flex;
+  gap: 16px;
+  padding: 12px 24px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e5e5e5;
+  font-size: 12px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat-label {
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+.stat-item.added .stat-value {
+  background: #d4edda;
+  color: #155724;
+}
+
+.stat-item.removed .stat-value {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.stat-item.changed .stat-value {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.stat-item.unchanged .stat-value {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.diff-viewer-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.diff-panes {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.diff-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #e5e5e5;
+}
+
+.diff-pane:last-child {
+  border-right: none;
+}
+
+.diff-pane-header {
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e5e5e5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.diff-pane-label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 14px;
+}
+
+.diff-pane-env {
+  font-size: 12px;
+  color: #6c757d;
+  background: #e9ecef;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.diff-pane-content {
+  flex: 1;
+  overflow-y: auto;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.diff-line {
+  display: flex;
+  padding: 2px 0;
+  border-bottom: 1px solid #f8f9fa;
+  transition: background-color 0.15s;
+}
+
+.diff-line:hover {
+  background-color: #f8f9fa;
+}
+
+.diff-line.selected {
+  background-color: #e3f2fd;
+  border-left: 3px solid #2196f3;
+}
+
+.diff-line-number {
+  width: 60px;
+  padding: 2px 8px;
+  text-align: right;
+  color: #6c757d;
+  background: #f8f9fa;
+  border-right: 1px solid #e5e5e5;
+  font-size: 11px;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.diff-line-content {
+  flex: 1;
+  padding: 2px 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Diff highlighting */
+.diff-line[data-type="added"] {
+  background-color: #d4edda;
+}
+
+.diff-line[data-type="added"]:hover {
+  background-color: #c3e6cb;
+}
+
+.diff-line[data-type="removed"] {
+  background-color: #f8d7da;
+}
+
+.diff-line[data-type="removed"]:hover {
+  background-color: #f5c6cb;
+}
+
+.diff-line[data-type="changed"] {
+  background-color: #fff3cd;
+}
+
+.diff-line[data-type="changed"]:hover {
+  background-color: #ffeaa7;
+}
+
+.diff-line[data-type="unchanged"] {
+  background-color: transparent;
+}
+
+.diff-line[data-type="unchanged"]:hover {
+  background-color: #f8f9fa;
+}
+
+/* Fullscreen specific styles */
+.diff-viewer-container.fullscreen .diff-line-number {
+  width: 80px;
+  font-size: 12px;
+}
+
+.diff-viewer-container.fullscreen .diff-line-content {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .diff-viewer-section {
+    width: 95%;
+    max-height: 90vh;
+  }
+  
+  .diff-panes {
+    flex-direction: column;
+  }
+  
+  .diff-pane {
+    border-right: none;
+    border-bottom: 1px solid #e5e5e5;
+  }
+  
+  .diff-pane:last-child {
+    border-bottom: none;
+  }
+  
+  .diff-stats {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .stat-item {
+    flex: 1;
+    min-width: 80px;
+  }
+}
+
+/* Keyboard shortcuts hint */
+.diff-viewer-container::after {
+  content: "Press Esc to close, Ctrl+F for fullscreen";
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.diff-viewer-container:hover::after {
+  opacity: 1;
+} 
