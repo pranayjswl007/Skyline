@@ -159,7 +159,26 @@ function execute(
     elementId,
     requestId
   };
-  exec(command, (error, stdout, stderr) => {
+  
+  // Get the workspace folder to use as working directory
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  let cwd = workspaceFolder?.uri.fsPath || process.cwd();
+  
+  // If we're in the extension directory, go up to the parent (Skyline root)
+  if (cwd.endsWith('/extension')) {
+    cwd = cwd.replace('/extension', '');
+  }
+  
+  // Execute command with proper working directory and environment
+  console.log(`[EXTENSION] Executing command: ${command}`);
+  console.log(`[EXTENSION] Working directory: ${cwd}`);
+  
+  exec(command, { 
+    cwd: cwd,
+    env: { ...process.env, PATH: process.env.PATH }
+  }, (error, stdout, stderr) => {
+    console.log(`[EXTENSION] Command result - error: ${error}, stdout: ${stdout?.substring(0, 100)}..., stderr: ${stderr}`);
+    
     if (error) {
       result.stderr = stderr;
       result.errorCode = error.code;

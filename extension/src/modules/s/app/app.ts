@@ -41,7 +41,8 @@ export enum Pages {
   repoConfig = "Project Configuration",
   metadataExplorer = "Metadata Explorer",
   pipeline = "Pipeline",
-  restExplorer = "REST Explorer"
+  restExplorer = "REST Explorer",
+  orgCompare = "Org Compare"
 }
 
 /**
@@ -201,5 +202,9 @@ export default class App extends LightningElement {
 
   get showRestExplorer() {
     return this.currentPage === Pages.restExplorer;
+  }
+
+  get showOrgCompare() {
+    return this.currentPage === Pages.orgCompare;
   }
 }
