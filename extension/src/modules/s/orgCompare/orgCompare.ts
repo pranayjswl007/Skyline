@@ -25,6 +25,7 @@ import { ExecuteResult } from "../app/app";
 import { LightningElement, track } from "lwc";
 import Toast from "lightning-base-components/src/lightning/toast/toast.js";
 import App from "../app/app";
+import { METADATA_TYPES, METADATA_TYPE_SET } from "./metadataConfig";
 
 export interface MetadataComparison {
   added: MetadataItem[];
@@ -43,6 +44,21 @@ export interface MetadataItem {
   sourceValue?: string;
   targetValue?: string;
   diff?: string;
+  selected?: boolean;
+  statusBadgeClass?: string;
+  lastModified?: string;
+}
+
+export interface DiffLine {
+  lineNumber: number;
+  sourceContent: string;
+  targetContent: string;
+  type: 'added' | 'removed' | 'changed' | 'unchanged';
+  diffLineClass?: string;
+}
+
+export interface DiffContent {
+  diffLines: DiffLine[];
 }
 
 export interface CompareFilter {
@@ -140,6 +156,18 @@ export default class OrgCompare extends LightningElement {
   @track targetTotalTypes = 0;
   @track sourceCompletedTypes = 0;
   @track targetCompletedTypes = 0;
+
+  @track sourceOrgs: OrgInfo[] = [];
+  @track targetOrgs: OrgInfo[] = [];
+  @track sourceBranches: string[] = [];
+  @track targetBranches: string[] = [];
+  
+  // Selection and diff viewer properties
+  @track selectedItems: MetadataItem[] = [];
+  @track selectAll = false;
+  @track showDiffViewer = false;
+  @track selectedDiffItem?: MetadataItem;
+  @track diffContent?: DiffContent;
 
   async executeCommand(command: string): Promise<ExecuteResult> {
     return App.executeCommand(command);
@@ -442,6 +470,9 @@ export default class OrgCompare extends LightningElement {
         unchanged: this.comparisonResult.unchanged.length
       });
 
+      // Populate item properties for UI display
+      this.populateItemProperties();
+      
       this.showToast(`Comparison completed: ${this.comparisonResult.added.length} added, ${this.comparisonResult.removed.length} removed, ${this.comparisonResult.changed.length} changed`, 'success');
     } catch (error) {
       console.error('Comparison failed:', error);
@@ -1125,10 +1156,33 @@ export default class OrgCompare extends LightningElement {
     this.filter.status = ['unchanged'];
   }
 
-  handleViewDiff(event: CustomEvent): void {
-    const itemName = (event.target as HTMLElement).dataset.item;
-    if (itemName && this.comparisonResult) {
-      // Find the item in the comparison result
+
+
+  private stripAnsiCodes(text?: string): string {
+    if (!text) return '';
+    return text.replace(/\x1b\[[0-9;]*m/g, '');
+  }
+
+  // Selection methods
+  handleSelectAll(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.selectAll = target.checked;
+    
+    if (this.comparisonResult) {
+      this.comparisonResult.added.forEach(item => item.selected = this.selectAll);
+      this.comparisonResult.removed.forEach(item => item.selected = this.selectAll);
+      this.comparisonResult.changed.forEach(item => item.selected = this.selectAll);
+      this.comparisonResult.unchanged.forEach(item => item.selected = this.selectAll);
+    }
+    
+    this.updateSelectedItems();
+  }
+
+  handleItemSelect(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const itemName = target.dataset.item;
+    
+    if (this.comparisonResult && itemName) {
       const allItems = [
         ...this.comparisonResult.added,
         ...this.comparisonResult.removed,
@@ -1138,16 +1192,289 @@ export default class OrgCompare extends LightningElement {
       
       const item = allItems.find(i => i.fullName === itemName);
       if (item) {
-        // In a real implementation, you would open a modal or navigate to a diff view
-        // For now, we'll just show a toast with the diff information
-        this.showToast(`Viewing diff for ${item.name}`, 'info');
+        item.selected = target.checked;
+      }
+    }
+    
+    this.updateSelectedItems();
+    this.updateSelectAllState();
+  }
+
+  updateSelectedItems(): void {
+    if (!this.comparisonResult) {
+      this.selectedItems = [];
+      return;
+    }
+    
+    const allItems = [
+      ...this.comparisonResult.added,
+      ...this.comparisonResult.removed,
+      ...this.comparisonResult.changed,
+      ...this.comparisonResult.unchanged
+    ];
+    
+    this.selectedItems = allItems.filter(item => item.selected);
+  }
+
+  updateSelectAllState(): void {
+    if (!this.comparisonResult) {
+      this.selectAll = false;
+      return;
+    }
+    
+    const allItems = [
+      ...this.comparisonResult.added,
+      ...this.comparisonResult.removed,
+      ...this.comparisonResult.changed,
+      ...this.comparisonResult.unchanged
+    ];
+    
+    this.selectAll = allItems.length > 0 && allItems.every(item => item.selected);
+  }
+
+  // Diff viewer methods
+  handleViewDiff(event: Event): void {
+    const target = event.target as HTMLButtonElement;
+    const itemName = target.dataset.item;
+    
+    if (this.comparisonResult && itemName) {
+      const allItems = [
+        ...this.comparisonResult.added,
+        ...this.comparisonResult.removed,
+        ...this.comparisonResult.changed,
+        ...this.comparisonResult.unchanged
+      ];
+      
+      this.selectedDiffItem = allItems.find(i => i.fullName === itemName);
+      if (this.selectedDiffItem) {
+        this.generateDiffContent();
+        this.showDiffViewer = true;
       }
     }
   }
 
-  private stripAnsiCodes(text?: string): string {
-    if (!text) return '';
-    // Remove ANSI escape codes (color codes, cursor movement, etc.)
-    return text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+  handleCloseDiffViewer(): void {
+    this.showDiffViewer = false;
+    this.selectedDiffItem = undefined;
+    this.diffContent = undefined;
+  }
+
+  generateDiffContent(): void {
+    if (!this.selectedDiffItem) return;
+    
+    const sourceContent = this.selectedDiffItem.sourceValue || '';
+    const targetContent = this.selectedDiffItem.targetValue || '';
+    
+    const sourceLines = sourceContent.split('\n');
+    const targetLines = targetContent.split('\n');
+    
+    const diffLines: DiffLine[] = [];
+    const maxLines = Math.max(sourceLines.length, targetLines.length);
+    
+    for (let i = 0; i < maxLines; i++) {
+      const sourceLine = sourceLines[i] || '';
+      const targetLine = targetLines[i] || '';
+      const lineNumber = i + 1;
+      
+      let type: 'added' | 'removed' | 'changed' | 'unchanged' = 'unchanged';
+      let diffLineClass = 'diff-line-unchanged';
+      
+      if (sourceLine !== targetLine) {
+        if (sourceLine && !targetLine) {
+          type = 'removed';
+          diffLineClass = 'diff-line-removed';
+        } else if (!sourceLine && targetLine) {
+          type = 'added';
+          diffLineClass = 'diff-line-added';
+        } else {
+          type = 'changed';
+          diffLineClass = 'diff-line-changed';
+        }
+      }
+      
+      diffLines.push({
+        lineNumber,
+        sourceContent: sourceLine,
+        targetContent: targetLine,
+        type,
+        diffLineClass
+      });
+    }
+    
+    this.diffContent = { diffLines };
+  }
+
+  // Package creation methods
+  handleCreatePackage(): void {
+    if (this.selectedItems.length === 0) {
+      this.showToast('No items selected for package creation', 'warning');
+      return;
+    }
+    
+    const autoWiredItems = this.autoWireDependencies(this.selectedItems);
+    this.createPackageZip(autoWiredItems);
+  }
+
+  autoWireDependencies(selectedItems: MetadataItem[]): MetadataItem[] {
+    const autoWiredItems = new Set<MetadataItem>();
+    
+    selectedItems.forEach(item => {
+      autoWiredItems.add(item);
+      
+      const typeConfig = METADATA_TYPES.find(t => t.type === item.type);
+      if (!typeConfig || !typeConfig.autoWire) return;
+      
+      switch (typeConfig.autoWire) {
+        case 'lwcFolder':
+          // Add all files in the LWC component folder
+          if (this.comparisonResult) {
+            const allItems = [
+              ...this.comparisonResult.added,
+              ...this.comparisonResult.removed,
+              ...this.comparisonResult.changed,
+              ...this.comparisonResult.unchanged
+            ];
+            
+            const componentName = item.name;
+            const relatedItems = allItems.filter(i => 
+              i.type === 'LightningComponentBundle' && 
+              i.name.startsWith(componentName + '/')
+            );
+            relatedItems.forEach(relatedItem => autoWiredItems.add(relatedItem));
+          }
+          break;
+          
+        case 'apexMeta':
+          // Add the corresponding .cls-meta.xml file
+          if (this.comparisonResult) {
+            const allItems = [
+              ...this.comparisonResult.added,
+              ...this.comparisonResult.removed,
+              ...this.comparisonResult.changed,
+              ...this.comparisonResult.unchanged
+            ];
+            
+            const metaItem = allItems.find(i => 
+              i.type === item.type && 
+              i.name === item.name + '-meta'
+            );
+            if (metaItem) autoWiredItems.add(metaItem);
+          }
+          break;
+          
+        case 'objectFields':
+          // Add related CustomField and Layout items
+          if (this.comparisonResult) {
+            const allItems = [
+              ...this.comparisonResult.added,
+              ...this.comparisonResult.removed,
+              ...this.comparisonResult.changed,
+              ...this.comparisonResult.unchanged
+            ];
+            
+            const objectName = item.name;
+            const relatedItems = allItems.filter(i => 
+              (i.type === 'CustomField' || i.type === 'Layout') && 
+              i.name.startsWith(objectName + '.')
+            );
+            relatedItems.forEach(relatedItem => autoWiredItems.add(relatedItem));
+          }
+          break;
+          
+        case 'fieldParentObject':
+          // Add the parent CustomObject
+          if (this.comparisonResult) {
+            const allItems = [
+              ...this.comparisonResult.added,
+              ...this.comparisonResult.removed,
+              ...this.comparisonResult.changed,
+              ...this.comparisonResult.unchanged
+            ];
+            
+            const fieldNameParts = item.name.split('.');
+            if (fieldNameParts.length > 1) {
+              const objectName = fieldNameParts[0];
+              const parentObject = allItems.find(i => 
+                i.type === 'CustomObject' && 
+                i.name === objectName
+              );
+              if (parentObject) autoWiredItems.add(parentObject);
+            }
+          }
+          break;
+      }
+    });
+    
+    return Array.from(autoWiredItems);
+  }
+
+  createPackageZip(items: MetadataItem[]): void {
+    const packageXml = this.generatePackageXml(items);
+    
+    console.log('Package XML:', packageXml);
+    console.log('Selected items:', items.map(item => `${item.type}:${item.name}`));
+    
+    this.showToast(`Package created with ${items.length} items`, 'success');
+  }
+
+  generatePackageXml(items: MetadataItem[]): string {
+    const metadataTypes = new Map<string, string[]>();
+    
+    items.forEach(item => {
+      if (!metadataTypes.has(item.type)) {
+        metadataTypes.set(item.type, []);
+      }
+      metadataTypes.get(item.type)!.push(item.name);
+    });
+    
+    let packageXml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    packageXml += '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
+    
+    metadataTypes.forEach((names, type) => {
+      packageXml += `  <types>\n`;
+      names.forEach(name => {
+        packageXml += `    <members>${name}</members>\n`;
+      });
+      packageXml += `    <name>${type}</name>\n`;
+      packageXml += `  </types>\n`;
+    });
+    
+    packageXml += '  <version>58.0</version>\n';
+    packageXml += '</Package>';
+    
+    return packageXml;
+  }
+
+  // Update the comparison result to populate status badges and lastModified
+  private populateItemProperties(): void {
+    if (!this.comparisonResult) return;
+    
+    const allItems = [
+      ...this.comparisonResult.added,
+      ...this.comparisonResult.removed,
+      ...this.comparisonResult.changed,
+      ...this.comparisonResult.unchanged
+    ];
+    
+    allItems.forEach(item => {
+      // Set status badge class
+      switch (item.status) {
+        case 'added':
+          item.statusBadgeClass = 'status-badge-added';
+          break;
+        case 'removed':
+          item.statusBadgeClass = 'status-badge-removed';
+          break;
+        case 'changed':
+          item.statusBadgeClass = 'status-badge-changed';
+          break;
+        case 'unchanged':
+          item.statusBadgeClass = 'status-badge-unchanged';
+          break;
+      }
+      
+      // Set lastModified
+      item.lastModified = item.lastModifiedDate || 'Unknown';
+    });
   }
 } 
